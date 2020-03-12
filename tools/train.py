@@ -22,16 +22,20 @@ import torchvision.utils as vutils
 from torch.autograd import Variable
 from datasets.ycb.dataset import PoseDataset as PoseDataset_ycb
 from datasets.linemod.dataset import PoseDataset as PoseDataset_linemod
+from datasets.cleargrasp.dataset import PoseDataset as PoseDataset_cleargrasp
 from lib.network import PoseNet, PoseRefineNet
 from lib.loss import Loss
 from lib.loss_refiner import Loss_refine
 from lib.utils import setup_logger
 
+import warnings
+warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, default = 'ycb', help='ycb or linemod')
-parser.add_argument('--dataset_root', type=str, default = '', help='dataset root dir (''YCB_Video_Dataset'' or ''Linemod_preprocessed'')')
-parser.add_argument('--batch_size', type=int, default = 8, help='batch size')
-parser.add_argument('--workers', type=int, default = 10, help='number of data loading workers')
+parser.add_argument('--dataset', type=str, default='cleargrasp', help='cleargrasp or ycb or linemod')
+parser.add_argument('--dataset_root', type=str, default='/home/cxt/Documents/research/lf_perception/598-007-project/',
+                    help='dataset root dir (''cleargrasp_preprocessed'' or ''YCB_Video_Dataset'' or ''Linemod_preprocessed'')')
+parser.add_argument('--batch_size', type=int, default=1, help='batch size')
+parser.add_argument('--workers', type=int, default=10, help='number of data loading workers')
 parser.add_argument('--lr', default=0.0001, help='learning rate')
 parser.add_argument('--lr_rate', default=0.3, help='learning rate decay rate')
 parser.add_argument('--w', default=0.015, help='learning rate')
@@ -39,11 +43,11 @@ parser.add_argument('--w_rate', default=0.3, help='learning rate decay rate')
 parser.add_argument('--decay_margin', default=0.016, help='margin to decay lr & w')
 parser.add_argument('--refine_margin', default=0.013, help='margin to start the training of iterative refinement')
 parser.add_argument('--noise_trans', default=0.03, help='range of the random noise of translation added to the training data')
-parser.add_argument('--iteration', type=int, default = 2, help='number of refinement iterations')
+parser.add_argument('--iteration', type=int, default=2, help='number of refinement iterations')
 parser.add_argument('--nepoch', type=int, default=500, help='max number of epochs to train')
-parser.add_argument('--resume_posenet', type=str, default = '',  help='resume PoseNet model')
-parser.add_argument('--resume_refinenet', type=str, default = '',  help='resume PoseRefineNet model')
-parser.add_argument('--start_epoch', type=int, default = 1, help='which epoch to start')
+parser.add_argument('--resume_posenet', type=str, default='',  help='resume PoseNet model')
+parser.add_argument('--resume_refinenet', type=str, default='',  help='resume PoseRefineNet model')
+parser.add_argument('--start_epoch', type=int, default=1, help='which epoch to start')
 opt = parser.parse_args()
 
 
@@ -64,6 +68,12 @@ def main():
         opt.outf = 'trained_models/linemod'
         opt.log_dir = 'experiments/logs/linemod'
         opt.repeat_epoch = 20
+    elif opt.dataset == 'cleargrasp':
+        opt.num_objects = 5         
+        opt.num_points = 500
+        opt.outf = 'trained_models/cleargrasp'
+        opt.log_dir = 'experiments/logs/cleargrasp'
+        opt.repeat_epoch = 1
     else:
         print('Unknown dataset')
         return
@@ -93,12 +103,16 @@ def main():
         dataset = PoseDataset_ycb('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
     elif opt.dataset == 'linemod':
         dataset = PoseDataset_linemod('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=opt.workers)
+    elif opt.dataset == 'cleargrasp':
+        dataset = PoseDataset_cleargrasp('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.workers)
     if opt.dataset == 'ycb':
         test_dataset = PoseDataset_ycb('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
     elif opt.dataset == 'linemod':
         test_dataset = PoseDataset_linemod('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
-    testdataloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=opt.workers)
+    elif opt.dataset == 'cleargrasp':
+        test_dataset = PoseDataset_cleargrasp('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
+    testdataloader = torch.utils.data.DataLoader(test_dataset, batch_size=opt.batch_size, shuffle=False, num_workers=opt.workers)
     
     opt.sym_list = dataset.get_sym_list()
     opt.num_points_mesh = dataset.get_num_points_mesh()
@@ -110,6 +124,7 @@ def main():
 
     best_test = np.Inf
 
+    os.system('mkdir -p ' + opt.log_dir)
     if opt.start_epoch == 1:
         for log in os.listdir(opt.log_dir):
             os.remove(os.path.join(opt.log_dir, log))
@@ -128,7 +143,7 @@ def main():
         optimizer.zero_grad()
 
         for rep in range(opt.repeat_epoch):
-            for i, data in enumerate(dataloader, 0):
+            for i, data in enumerate(dataloader):
                 points, choose, img, target, model_points, idx = data
                 points, choose, img, target, model_points, idx = Variable(points).cuda(), \
                                                                  Variable(choose).cuda(), \
@@ -152,19 +167,21 @@ def main():
 
                 if train_count % opt.batch_size == 0:
                     logger.info('Train time {0} Epoch {1} Batch {2} Frame {3} Avg_dis:{4}'.format(time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - st_time)), epoch, int(train_count / opt.batch_size), train_count, train_dis_avg / opt.batch_size))
+                    #print('Train time {0} Epoch {1} Batch {2} Frame {3} Avg_dis:{4}'.format(time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - st_time)), epoch, int(train_count / opt.batch_size), train_count, train_dis_avg / opt.batch_size))
                     optimizer.step()
                     optimizer.zero_grad()
                     train_dis_avg = 0
 
                 if train_count != 0 and train_count % 1000 == 0:
+                #if epoch % 1 == 0 and train_count != 0 and train_count % 1000 == 0: 
                     if opt.refine_start:
-                        torch.save(refiner.state_dict(), '{0}/pose_refine_model_current.pth'.format(opt.outf))
+                        torch.save(refiner.state_dict(), '{0}/pose_refine_current_model_obj.pth'.format(opt.outf))
                     else:
-                        torch.save(estimator.state_dict(), '{0}/pose_model_current.pth'.format(opt.outf))
+                        torch.save(estimator.state_dict(), '{0}/pose_current_model_obj.pth'.format(opt.outf))
 
         print('>>>>>>>>----------epoch {0} train finish---------<<<<<<<<'.format(epoch))
 
-
+        
         logger = setup_logger('epoch%d_test' % epoch, os.path.join(opt.log_dir, 'epoch_%d_test_log.txt' % epoch))
         logger.info('Test time {0}'.format(time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - st_time)) + ', ' + 'Testing started'))
         test_dis = 0.0
@@ -198,9 +215,9 @@ def main():
         if test_dis <= best_test:
             best_test = test_dis
             if opt.refine_start:
-                torch.save(refiner.state_dict(), '{0}/pose_refine_model_{1}_{2}.pth'.format(opt.outf, epoch, test_dis))
+                torch.save(refiner.state_dict(), '{0}/pose_refine_model_{1}_{2}_obj.pth'.format(opt.outf, epoch, test_dis))
             else:
-                torch.save(estimator.state_dict(), '{0}/pose_model_{1}_{2}.pth'.format(opt.outf, epoch, test_dis))
+                torch.save(estimator.state_dict(), '{0}/pose_model_{1}_{2}_obj.pth'.format(opt.outf, epoch, test_dis))
             print(epoch, '>>>>>>>>----------BEST TEST MODEL SAVED---------<<<<<<<<')
 
         if best_test < opt.decay_margin and not opt.decay_start:
@@ -218,11 +235,15 @@ def main():
                 dataset = PoseDataset_ycb('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
             elif opt.dataset == 'linemod':
                 dataset = PoseDataset_linemod('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
+            elif opt.dataset == 'cleargrasp':
+                dataset = PoseDataset_cleargrasp('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
             dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=opt.workers)
             if opt.dataset == 'ycb':
                 test_dataset = PoseDataset_ycb('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
             elif opt.dataset == 'linemod':
                 test_dataset = PoseDataset_linemod('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
+            elif opt.dataset == 'cleargrasp':
+                test_dataset = PoseDataset_cleargrasp('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
             testdataloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=opt.workers)
             
             opt.sym_list = dataset.get_sym_list()
@@ -232,6 +253,6 @@ def main():
 
             criterion = Loss(opt.num_points_mesh, opt.sym_list)
             criterion_refine = Loss_refine(opt.num_points_mesh, opt.sym_list)
-
+            
 if __name__ == '__main__':
     main()

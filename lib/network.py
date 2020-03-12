@@ -32,6 +32,7 @@ class ModifiedResnet(nn.Module):
         self.model = psp_models['resnet18'.lower()]()
         self.model = nn.DataParallel(self.model)
 
+    # @staticmethod
     def forward(self, x):
         x = self.model(x)
         return x
@@ -50,6 +51,8 @@ class PoseNetFeat(nn.Module):
 
         self.ap1 = torch.nn.AvgPool1d(num_points)
         self.num_points = num_points
+        
+    # @staticmethod
     def forward(self, x, emb):
         x = F.relu(self.conv1(x))
         emb = F.relu(self.e_conv1(emb))
@@ -92,6 +95,7 @@ class PoseNet(nn.Module):
 
         self.num_obj = num_obj
 
+    # @staticmethod
     def forward(self, img, x, choose, obj):
         out_img = self.cnn(img)
         
@@ -148,6 +152,7 @@ class PoseRefineNetFeat(nn.Module):
         self.ap1 = torch.nn.AvgPool1d(num_points)
         self.num_points = num_points
 
+    # @staticmethod
     def forward(self, x, emb):
         x = F.relu(self.conv1(x))
         emb = F.relu(self.e_conv1(emb))
@@ -184,6 +189,7 @@ class PoseRefineNet(nn.Module):
 
         self.num_obj = num_obj
 
+    # @staticmethod
     def forward(self, x, emb, obj):
         bs = x.size()[0]
         

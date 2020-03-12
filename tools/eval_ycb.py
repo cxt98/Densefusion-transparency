@@ -148,11 +148,19 @@ for now in range(0, 2949):
         itemid = lst[idx]
         try:
             rmin, rmax, cmin, cmax = get_bbox(posecnn_rois)
+            # rmin = int(posecnn_rois[idx][3] + 1)
+            # rmax = int(posecnn_rois[idx][5] - 1)
+            # cmin = int(posecnn_rois[idx][2] + 1)
+            # cmax = int(posecnn_rois[idx][4] - 1)
+            # rmin = min(max(rmin, 1), 480)
+            # rmax = min(max(rmax, 1), 480)
+            # cmin = min(max(cmin, 1), 640)
+            # cmax = min(max(cmax, 1), 640)
 
             mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
             mask_label = ma.getmaskarray(ma.masked_equal(label, itemid))
             mask = mask_label * mask_depth
-
+            
             choose = mask[rmin:rmax, cmin:cmax].flatten().nonzero()[0]
             if len(choose) > num_points:
                 c_mask = np.zeros(len(choose), dtype=int)
@@ -160,6 +168,8 @@ for now in range(0, 2949):
                 np.random.shuffle(c_mask)
                 choose = choose[c_mask.nonzero()]
             else:
+                if len(choose) == 0:
+                    continue
                 choose = np.pad(choose, (0, num_points - len(choose)), 'wrap')
 
             depth_masked = depth[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
