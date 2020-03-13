@@ -21,9 +21,9 @@ import Imath
 class PoseDataset(data.Dataset):
     def __init__(self, mode, num_pt, add_noise, root, noise_trans, refine):
         if mode == 'train':
-            self.path = 'datasets/cleargrasp/dataset_config/train_data_cup_list.txt' 
+            self.path = 'datasets/cleargrasp/dataset_config/train_data_list.txt' # Change this to train_data_cup_list.txt for single object
         elif mode == 'test':
-            self.path = 'datasets/cleargrasp/dataset_config/test_data_cup_list.txt'
+            self.path = 'datasets/cleargrasp/dataset_config/test_data_list.txt'  # Change this to test_data_cup_list.txt for single object
         self.num_pt = num_pt
         self.root = root
         self.add_noise = add_noise
