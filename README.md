@@ -24,7 +24,7 @@ Download the ClearGrasp training and testing data from https://sites.google.com/
 		* cup-with-waves-train
 			* meta-files
 				* all the meta files from unzipping meta-files_cup-with-waves.zip
-* Run the below command:
+* Run the following command:
 ```	
 python3 tools/train.py
 ```
