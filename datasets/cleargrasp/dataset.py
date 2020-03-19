@@ -17,13 +17,13 @@ import OpenEXR
 import Imath
 
 
-# TODO: change to cleargrasp dataset
+# TODO: change to the whole cleargrasp dataset
 class PoseDataset(data.Dataset):
     def __init__(self, mode, num_pt, add_noise, root, noise_trans, refine):
         if mode == 'train':
-            self.path = 'datasets/cleargrasp/dataset_config/train_data_cup_list.txt' 
+            self.path = 'datasets/cleargrasp/dataset_config/train_data_list.txt'
         elif mode == 'test':
-            self.path = 'datasets/cleargrasp/dataset_config/test_data_cup_list.txt'
+            self.path = 'datasets/cleargrasp/dataset_config/test_data_list.txt'
         self.num_pt = num_pt
         self.root = root
         self.add_noise = add_noise

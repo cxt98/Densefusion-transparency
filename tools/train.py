@@ -228,7 +228,7 @@ def main():
 
         if best_test < opt.refine_margin and not opt.refine_start:
             opt.refine_start = True
-            opt.batch_size = int(opt.batch_size / opt.iteration)
+            # opt.batch_size = int(opt.batch_size / opt.iteration)
             optimizer = optim.Adam(refiner.parameters(), lr=opt.lr)
 
             if opt.dataset == 'ycb':
