@@ -142,9 +142,6 @@ def main():
     #         os.remove(os.path.join(opt.log_dir, log))
     st_time = time.time()
 
-    my_result_wo_refine = []
-    my_result = []
-
     for epoch in range(0, 1):
         # logger = setup_logger('epoch%d' % epoch, os.path.join(opt.log_dir, 'epoch_%d_log.txt' % epoch))
         # logger.info('Train time {0}'.format(
@@ -208,9 +205,17 @@ def main():
         test_count = 0
         estimator.eval()
         refiner.eval()
-
+        # TODO: change dataloader or add loop to go through all instances in images, now randomly choose one from each image
         for j, data in enumerate(testdataloader, 0):
-            points, choose, img, target, model_points, idx = data
+            my_result = []
+            # TODO: change these variables with #instances in the last dimension
+            my_result_wo_refine = np.zeros((1, 7))
+            gt_pose = np.zeros((3, 4, 1))
+            cls_indexes = np.zeros((1,))
+            instance_ids = np.zeros((1,))
+
+            points, choose, img, target, model_points, idx, gt_pose_r, gt_pose_t = data
+
             cloud, choose, img, target, model_points, idx = Variable(points).cuda(), \
                                                              Variable(choose).cuda(), \
                                                              Variable(img).cuda(), \
@@ -231,7 +236,8 @@ def main():
             my_r = pred_r[0][which_max[0]].view(-1).cpu().data.numpy()
             my_t = (points + pred_t)[which_max[0]].view(-1).cpu().data.numpy()
             my_pred = np.append(my_r, my_t)
-            my_result_wo_refine.append(my_pred.tolist())
+            my_result_wo_refine[0] = np.array(my_pred.tolist())
+            cls_indexes[0] = idx.cpu().numpy()[0]
 
             if opt.refine_start:
                 for ite in range(0, opt.iteration):
@@ -269,10 +275,11 @@ def main():
                 time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - st_time)), test_count, dis))
 
             test_count += 1
-
-            scio.savemat('{0}/{1}.mat'.format(result_wo_refine_dir, '%04d' % j), {'poses': my_result_wo_refine})
+            gt_pose[:, :, 0] = np.vstack((gt_pose_r[0].numpy(), gt_pose_t[0].numpy())).transpose()
+            scio.savemat('{0}/{1}.mat'.format(result_wo_refine_dir, '%04d' % j),
+                         {'poses': my_result_wo_refine, 'gt_poses': gt_pose, 'cls_indexes': cls_indexes})
             if opt.refine_start:
-                scio.savemat('{0}/{1}.mat'.format(result_refine_dir, '%04d' % j), {'poses': my_result})
+                scio.savemat('{0}/{1}.mat'.format(result_refine_dir, '%04d' % j), {'poses': my_result, 'gt_poses': gt_pose, 'cls_indexes': idx.cpu().numpy()[0]})
             print("Finish No.{0} keyframe".format(j))
 
         test_dis = test_dis / test_count

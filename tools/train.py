@@ -78,9 +78,9 @@ def main():
         print('Unknown dataset')
         return
 
-    estimator = PoseNet(num_points = opt.num_points, num_obj = opt.num_objects)
+    estimator = PoseNet(num_points=opt.num_points, num_obj=opt.num_objects)
     estimator.cuda()
-    refiner = PoseRefineNet(num_points = opt.num_points, num_obj = opt.num_objects)
+    refiner = PoseRefineNet(num_points=opt.num_points, num_obj=opt.num_objects)
     refiner.cuda()
 
     if opt.resume_posenet != '':
@@ -190,7 +190,7 @@ def main():
         refiner.eval()
 
         for j, data in enumerate(testdataloader, 0):
-            points, choose, img, target, model_points, idx = data
+            points, choose, img, target, model_points, idx, _, _ = data
             points, choose, img, target, model_points, idx = Variable(points).cuda(), \
                                                              Variable(choose).cuda(), \
                                                              Variable(img).cuda(), \

@@ -13,8 +13,7 @@ import numpy.ma as ma
 import copy
 import scipy.misc
 import scipy.io as scio
-import OpenEXR
-import Imath
+import cv2
 
 
 # TODO: change to the whole cleargrasp dataset
@@ -288,13 +287,22 @@ class PoseDataset(data.Dataset):
         #       self.norm(torch.from_numpy(img_masked.astype(np.float32))).size(), torch.from_numpy(target.astype(np.float32)).size(),
         #       torch.from_numpy(model_points.astype(np.float32)).size(), torch.LongTensor([int(obj[idx]) - 1]).size())
         
-        #print(np.shape(obj[idx]))        
-        return torch.from_numpy(cloud.astype(np.float32)), \
-               torch.LongTensor(choose.astype(np.int32)), \
-               self.norm(torch.from_numpy(img_masked.astype(np.float32))), \
-               torch.from_numpy(target.astype(np.float32)), \
-               torch.from_numpy(model_points.astype(np.float32)), \
-               torch.LongTensor([int(obj[idx]) - 1])
+        #print(np.shape(obj[idx]))
+        if self.mode == 'train':
+            return torch.from_numpy(cloud.astype(np.float32)), \
+                   torch.LongTensor(choose.astype(np.int32)), \
+                   self.norm(torch.from_numpy(img_masked.astype(np.float32))), \
+                   torch.from_numpy(target.astype(np.float32)), \
+                   torch.from_numpy(model_points.astype(np.float32)), \
+                   torch.LongTensor([int(obj[idx]) - 1])
+        elif self.mode == 'test':
+            return torch.from_numpy(cloud.astype(np.float32)), \
+                   torch.LongTensor(choose.astype(np.int32)), \
+                   self.norm(torch.from_numpy(img_masked.astype(np.float32))), \
+                   torch.from_numpy(target.astype(np.float32)), \
+                   torch.from_numpy(model_points.astype(np.float32)), \
+                   torch.LongTensor([int(obj[idx]) - 1]), \
+                   target_r, target_t
 
     def __len__(self):
         return self.length
@@ -321,6 +329,11 @@ class PoseDataset(data.Dataset):
             return '{0}/{1}/{2}/{3}{4}'.format(self.root, object_path + '/' + modality_path, param, file_id, suffix)
 
     def exr_loader(self, EXR_PATH, ndim=3):
+        # use opencv library instead
+        img = cv2.imread(EXR_PATH, cv2.IMREAD_UNCHANGED)
+        if ndim == 1:
+            img = img[:, :, 0]
+        return img
         """Loads a .exr file as a numpy array
         Args:
             EXR_PATH: path to the exr file
@@ -332,6 +345,8 @@ class PoseDataset(data.Dataset):
             numpy.ndarray (dtype=np.float32): If ndim=1, shape is (height x width)
                                               If ndim=3, shape is (3 x height x width)
         """
+        import OpenEXR
+        import Imath
         exr_file = OpenEXR.InputFile(EXR_PATH)
         cm_dw = exr_file.header()['dataWindow']
         size = (cm_dw.max.x - cm_dw.min.x + 1, cm_dw.max.y - cm_dw.min.y + 1)
