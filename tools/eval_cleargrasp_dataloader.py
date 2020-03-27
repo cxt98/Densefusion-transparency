@@ -237,7 +237,7 @@ def main():
             my_t = (points + pred_t)[which_max[0]].view(-1).cpu().data.numpy()
             my_pred = np.append(my_r, my_t)
             my_result_wo_refine[0] = np.array(my_pred.tolist())
-            cls_indexes[0] = idx.cpu().numpy()[0]
+            cls_indexes[0] = idx.cpu().numpy()[0] + 1 # MATLAB indices starts from 1
 
             if opt.refine_start:
                 for ite in range(0, opt.iteration):

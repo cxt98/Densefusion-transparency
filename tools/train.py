@@ -177,7 +177,7 @@ def main():
                     if opt.refine_start:
                         torch.save(refiner.state_dict(), '{0}/pose_refine_current_model_obj.pth'.format(opt.outf))
                     else:
-                        torch.save(estimator.state_dict(), '{0}/pose_current_model_obj.pth'.format(opt.outf))
+                        torch.save(estimator.state_dict(), '{0}/pose_current_model_obj.pth'.format(opt.outf)) # Change it back to the actual name
 
         print('>>>>>>>>----------epoch {0} train finish---------<<<<<<<<'.format(epoch))
 
