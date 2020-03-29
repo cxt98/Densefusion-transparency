@@ -29,3 +29,11 @@ Download the ClearGrasp training and testing data from https://sites.google.com/
 python3 tools/train.py
 ```
 
+## Evaluation
+* Run the following command:
+```
+python3 tools/eval_cleargrasp_dataloader.py --resume_posenet='name_of_trained_model.pth' --dataset_root=your_root_dir
+
+```
+The above code creates a directory ./trained_models/cleargrasp/Densefusion_wo_refine_result which consists of gt poses and predicted poses stored in mat format for each test sample.
+
