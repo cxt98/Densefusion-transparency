@@ -30,6 +30,7 @@ python3 tools/train.py
 ```
 
 ## Evaluation
+* Download cleargrasp-synthetic-val.zip from https://drive.google.com/drive/u/1/folders/1zEJodFoijmzjcD2Tpzl7EB7ftbGodhFS. After downloading and unzipping the folder, rename the folder from cleargrasp-synthetic-val to cleargrasp-testing-validation.
 * Run the following command:
 ```
 python3 tools/eval_cleargrasp_dataloader.py --resume_posenet='name_of_trained_model.pth' --dataset_root=your_root_dir
