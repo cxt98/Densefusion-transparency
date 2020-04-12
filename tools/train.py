@@ -23,6 +23,7 @@ from torch.autograd import Variable
 from datasets.ycb.dataset import PoseDataset as PoseDataset_ycb
 from datasets.linemod.dataset import PoseDataset as PoseDataset_linemod
 from datasets.cleargrasp.dataset import PoseDataset as PoseDataset_cleargrasp
+from datasets.unreal.dataset import PoseDataset as PoseDataset_unreal
 from lib.network import PoseNet, PoseRefineNet
 from lib.loss import Loss
 from lib.loss_refiner import Loss_refine
@@ -31,7 +32,7 @@ from lib.utils import setup_logger
 import warnings
 warnings.filterwarnings("ignore")
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', type=str, default='cleargrasp', help='cleargrasp or ycb or linemod')
+parser.add_argument('--dataset', type=str, default='unreal', help='cleargrasp or ycb or linemod or unreal')
 parser.add_argument('--dataset_root', type=str, default='/home/cxt/Documents/research/lf_perception/598-007-project/',
                     help='dataset root dir (''cleargrasp_preprocessed'' or ''YCB_Video_Dataset'' or ''Linemod_preprocessed'')')
 parser.add_argument('--batch_size', type=int, default=1, help='batch size')
@@ -55,6 +56,7 @@ def main():
     opt.manualSeed = random.randint(1, 10000)
     random.seed(opt.manualSeed)
     torch.manual_seed(opt.manualSeed)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     if opt.dataset == 'ycb':
         opt.num_objects = 21 #number of object classes in the dataset
@@ -74,14 +76,21 @@ def main():
         opt.outf = 'trained_models/cleargrasp'
         opt.log_dir = 'experiments/logs/cleargrasp'
         opt.repeat_epoch = 1
+    elif opt.dataset == 'unreal':
+        opt.num_objects = 4         
+        opt.num_points = 500
+        opt.outf = 'trained_models/unreal'
+        opt.log_dir = 'experiments/logs/unreal'
+        opt.repeat_epoch = 1
+
     else:
         print('Unknown dataset')
         return
 
     estimator = PoseNet(num_points=opt.num_points, num_obj=opt.num_objects)
-    estimator.cuda()
+    estimator.to(device)
     refiner = PoseRefineNet(num_points=opt.num_points, num_obj=opt.num_objects)
-    refiner.cuda()
+    refiner.to(device)
 
     if opt.resume_posenet != '':
         estimator.load_state_dict(torch.load('{0}/{1}'.format(opt.outf, opt.resume_posenet)))
@@ -105,6 +114,8 @@ def main():
         dataset = PoseDataset_linemod('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
     elif opt.dataset == 'cleargrasp':
         dataset = PoseDataset_cleargrasp('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
+    elif opt.dataset == 'unreal':
+        dataset = PoseDataset_unreal('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.workers)
     if opt.dataset == 'ycb':
         test_dataset = PoseDataset_ycb('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
@@ -112,6 +123,9 @@ def main():
         test_dataset = PoseDataset_linemod('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
     elif opt.dataset == 'cleargrasp':
         test_dataset = PoseDataset_cleargrasp('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
+    elif opt.dataset == 'unreal':
+        test_dataset = PoseDataset_unreal('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
+
     testdataloader = torch.utils.data.DataLoader(test_dataset, batch_size=opt.batch_size, shuffle=False, num_workers=opt.workers)
     
     opt.sym_list = dataset.get_sym_list()
@@ -145,12 +159,12 @@ def main():
         for rep in range(opt.repeat_epoch):
             for i, data in enumerate(dataloader):
                 points, choose, img, target, model_points, idx = data
-                points, choose, img, target, model_points, idx = Variable(points).cuda(), \
-                                                                 Variable(choose).cuda(), \
-                                                                 Variable(img).cuda(), \
-                                                                 Variable(target).cuda(), \
-                                                                 Variable(model_points).cuda(), \
-                                                                 Variable(idx).cuda()
+                points, choose, img, target, model_points, idx = Variable(points).to(device), \
+                                                                 Variable(choose).to(device), \
+                                                                 Variable(img).to(device), \
+                                                                 Variable(target).to(device), \
+                                                                 Variable(model_points).to(device), \
+                                                                 Variable(idx).to(device)
                 pred_r, pred_t, pred_c, emb = estimator(img, points, choose, idx)
                 loss, dis, new_points, new_target = criterion(pred_r, pred_t, pred_c, target, model_points, idx, points, opt.w, opt.refine_start)
                 
@@ -191,12 +205,12 @@ def main():
 
         for j, data in enumerate(testdataloader, 0):
             points, choose, img, target, model_points, idx, _, _ = data
-            points, choose, img, target, model_points, idx = Variable(points).cuda(), \
-                                                             Variable(choose).cuda(), \
-                                                             Variable(img).cuda(), \
-                                                             Variable(target).cuda(), \
-                                                             Variable(model_points).cuda(), \
-                                                             Variable(idx).cuda()
+            points, choose, img, target, model_points, idx = Variable(points).to(device), \
+                                                             Variable(choose).to(device), \
+                                                             Variable(img).to(device), \
+                                                             Variable(target).to(device), \
+                                                             Variable(model_points).to(device), \
+                                                             Variable(idx).to(device)
             pred_r, pred_t, pred_c, emb = estimator(img, points, choose, idx)
             _, dis, new_points, new_target = criterion(pred_r, pred_t, pred_c, target, model_points, idx, points, opt.w, opt.refine_start)
 
@@ -237,6 +251,9 @@ def main():
                 dataset = PoseDataset_linemod('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
             elif opt.dataset == 'cleargrasp':
                 dataset = PoseDataset_cleargrasp('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
+            elif opt.dataset == 'unreal':
+                dataset = PoseDataset_unreal('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
+
             dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True, num_workers=opt.workers)
             if opt.dataset == 'ycb':
                 test_dataset = PoseDataset_ycb('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
@@ -244,6 +261,9 @@ def main():
                 test_dataset = PoseDataset_linemod('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
             elif opt.dataset == 'cleargrasp':
                 test_dataset = PoseDataset_cleargrasp('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
+            elif opt.dataset == 'unreal':
+                test_dataset = PoseDataset_unreal('test', opt.num_points, False, opt.dataset_root, 0.0, opt.refine_start)
+
             testdataloader = torch.utils.data.DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=opt.workers)
             
             opt.sym_list = dataset.get_sym_list()
