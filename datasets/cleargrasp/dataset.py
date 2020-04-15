@@ -100,8 +100,10 @@ class PoseDataset(data.Dataset):
 
     def __getitem__(self, index):
         img = Image.open(self.list2realpath(self.list[index], 'rgb-imgs', '-rgb.jpg'))
+        #img = img.transpose(Image.FLIP_LEFT_RIGHT)
         # read depth from exr file
         depth = self.exr_loader(self.list2realpath(self.list[index], 'depth-imgs-rectified', '-depth-rectified.exr'), ndim=1)
+        depth = np.fliplr(depth)
         # read segmentation from exr file
         label = self.exr_loader(self.list2realpath(self.list[index], 'variant-masks', '-variantMasks.exr'), ndim=1)
         meta = scio.loadmat(self.list2realpath(self.list[index], 'meta-files', '.mat'))
@@ -162,6 +164,7 @@ class PoseDataset(data.Dataset):
             for k in range(5):
                 seed = random.choice(self.list)
                 front = np.array(self.trancolor(Image.open(self.list2realpath(seed, 'rgb-imgs', '-rgb.jpg')).convert("RGB")))
+                front = np.fliplr(front)
                 front = np.transpose(front, (2, 0, 1))
                 f_label = self.exr_loader(self.list2realpath(seed, 'variant-masks', '-variantMasks.exr'))[0]
                 front_label = np.unique(f_label).tolist()[1:]
@@ -182,7 +185,8 @@ class PoseDataset(data.Dataset):
                     break
 
         obj = meta['cls_indexes'].flatten().astype(np.int32)
-        instance_id = meta['instance_ids'].flatten().astype(np.int32)
+        #instance_id = meta['instance_ids'].flatten().astype(np.int32)
+        instance_id = np.unique(label).tolist()[1:]
         while 1:
              idx = np.random.randint(0, len(instance_id))
              mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
@@ -199,7 +203,8 @@ class PoseDataset(data.Dataset):
         border_list = np.arange(0, img_width + img_step + 1, img_step)
         border_list[0] = -1
         rmin, rmax, cmin, cmax = get_bbox(mask_label, img_width, img_height, border_list)
-        img = np.transpose(np.array(img)[:, :, :3], (2, 0, 1))[:, rmin:rmax, cmin:cmax]
+        img = np.fliplr(np.array(img))
+        img = np.transpose(img[:, :, :3], (2, 0, 1))[:, rmin:rmax, cmin:cmax]
 
         seed = random.choice(self.list)
         back = np.array(self.trancolor(Image.open(self.list2realpath(seed, 'rgb-imgs', '-rgb.jpg')).convert("RGB")))
