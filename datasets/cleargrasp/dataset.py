@@ -106,6 +106,7 @@ class PoseDataset(data.Dataset):
         depth = np.fliplr(depth)
         # read segmentation from exr file
         label = self.exr_loader(self.list2realpath(self.list[index], 'variant-masks', '-variantMasks.exr'), ndim=1)
+        label = np.fliplr(label)
         meta = scio.loadmat(self.list2realpath(self.list[index], 'meta-files', '.mat'))
 
         if img.width == 1024:
@@ -187,6 +188,7 @@ class PoseDataset(data.Dataset):
         obj = meta['cls_indexes'].flatten().astype(np.int32)
         #instance_id = meta['instance_ids'].flatten().astype(np.int32)
         instance_id = np.unique(label).tolist()[1:]
+        #print(instance_id)
         while 1:
              idx = np.random.randint(0, len(instance_id))
              mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
