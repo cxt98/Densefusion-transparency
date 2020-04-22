@@ -53,7 +53,7 @@ class PoseDataset(data.Dataset):
             if not class_input:
                 break
 
-            input_file = open('{0}/cleargrasp-3d-models/{1}.xyz'.format(self.root, class_input[:-1]))
+            input_file = open('{0}/cleargrasp-3d-models-fixed/{1}.xyz'.format(self.root, class_input[:-1]))
             self.cld[class_id] = []
             while 1:
                 input_line = input_file.readline()
