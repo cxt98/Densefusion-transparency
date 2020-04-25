@@ -39,7 +39,7 @@ python3 tools/eval_cleargrasp_dataloader.py --resume_posenet='name_of_trained_mo
 The above code stores the predicted and GT poses (in .mat format for each test sample) in the directory ./trained_models/cleargrasp/Densefusion_wo_refine_result. 
 * Run the following command for all instances:
 ```
-python3 tools/eval_cleargrasp.py --model=path to the trained model --dataset_root=your_root_dir --model_path=path to the cleargrasp object models
+python3 tools/eval_cleargrasp.py --model=path to the trained model --dataset_root=your_root_dir(path to cleargrasp testing data) --model_path=path to the cleargrasp object models
 
 ```
 The above code stores the predicted and GT poses (in .mat format for each test sample) in the directory ./trained_models/cleargrasp/Densefusion_wo_refine_result_all_instances. 
