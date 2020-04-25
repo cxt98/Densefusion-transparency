@@ -55,8 +55,8 @@ parser.add_argument('--start_epoch', type=int, default=1, help='which epoch to s
 opt = parser.parse_args()
 bs = 1
 #result_wo_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_wo_refine_result_dandan_fixed'
-#result_wo_refine_dir = 'experiments/eval_result/cleargrasp/temp'
-result_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_iterative_result'
+result_wo_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_wo_refine_result'
+#result_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_iterative_result'
 #result_wo_refine_dir = './'
 if not os.path.exists(result_wo_refine_dir):
     os.makedirs(result_wo_refine_dir)	
