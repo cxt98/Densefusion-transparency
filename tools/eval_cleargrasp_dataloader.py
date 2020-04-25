@@ -54,8 +54,12 @@ parser.add_argument('--resume_refinenet', type=str, default='', help='resume Pos
 parser.add_argument('--start_epoch', type=int, default=1, help='which epoch to start')
 opt = parser.parse_args()
 bs = 1
-result_wo_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_wo_refine_result'
+#result_wo_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_wo_refine_result_dandan_fixed'
+#result_wo_refine_dir = 'experiments/eval_result/cleargrasp/temp'
 result_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_iterative_result'
+#result_wo_refine_dir = './'
+if not os.path.exists(result_wo_refine_dir):
+    os.makedirs(result_wo_refine_dir)	
 
 
 def main():
@@ -86,12 +90,13 @@ def main():
         return
 
     estimator = PoseNet(num_points=opt.num_points, num_obj=opt.num_objects)
-    estimator.cuda()
+    #estimator.cuda()
     refiner = PoseRefineNet(num_points=opt.num_points, num_obj=opt.num_objects)
-    refiner.cuda()
+    #refiner.cuda()
 
     if opt.resume_posenet != '':
-        estimator.load_state_dict(torch.load('{0}/{1}'.format(opt.outf, opt.resume_posenet)))
+        #estimator.load_state_dict(torch.load('{0}/{1}'.format(opt.outf, opt.resume_posenet)))
+        estimator.load_state_dict(torch.load('{0}/{1}'.format(opt.outf, opt.resume_posenet), map_location='cpu'))
 
     if opt.resume_refinenet != '':
         refiner.load_state_dict(torch.load('{0}/{1}'.format(opt.outf, opt.resume_refinenet)))
@@ -216,15 +221,25 @@ def main():
 
             points, choose, img, target, model_points, idx, gt_pose_r, gt_pose_t = data
 
+            '''
             cloud, choose, img, target, model_points, idx = Variable(points).cuda(), \
                                                              Variable(choose).cuda(), \
                                                              Variable(img).cuda(), \
                                                              Variable(target).cuda(), \
                                                              Variable(model_points).cuda(), \
                                                              Variable(idx).cuda()
+            '''
+
+            cloud, choose, img, target, model_points, idx = Variable(points), \
+                                                             Variable(choose), \
+                                                             Variable(img), \
+                                                             Variable(target), \
+                                                             Variable(model_points), \
+                                                             Variable(idx)
+
             pred_r, pred_t, pred_c, emb = estimator(img, cloud, choose, idx)
-            _, dis, new_points, new_target = criterion(pred_r, pred_t, pred_c, target, model_points, idx, cloud, opt.w,
-                                                       opt.refine_start)
+            #_, dis, new_points, new_target = criterion(pred_r, pred_t, pred_c, target, model_points, idx, cloud, opt.w,
+             #                                          opt.refine_start)
 
             pred_r = pred_r / torch.norm(pred_r, dim=2).view(1, opt.num_points, 1)
 
@@ -241,10 +256,16 @@ def main():
 
             if opt.refine_start:
                 for ite in range(0, opt.iteration):
+                    '''
                     T = Variable(torch.from_numpy(my_t.astype(np.float32))).cuda().view(1, 3).\
                         repeat(opt.num_points, 1).contiguous().view(1, opt.num_points, 3)
+                    '''
+                    T = Variable(torch.from_numpy(my_t.astype(np.float32))).view(1, 3).\
+                        repeat(opt.num_points, 1).contiguous().view(1, opt.num_points, 3)
+
                     my_mat = quaternion_matrix(my_r)
-                    R = Variable(torch.from_numpy(my_mat[:3, :3].astype(np.float32))).cuda().view(1, 3, 3)
+                    #R = Variable(torch.from_numpy(my_mat[:3, :3].astype(np.float32))).cuda().view(1, 3, 3)
+                    R = Variable(torch.from_numpy(my_mat[:3, :3].astype(np.float32))).view(1, 3, 3)
                     my_mat[0:3, 3] = my_t
 
                     new_cloud = torch.bmm((cloud - T), R).contiguous()
@@ -270,21 +291,21 @@ def main():
                     my_t = my_t_final
                 my_result.append(my_pred.tolist())
 
-            test_dis += dis.item()
-            logger.info('Test time {0} Test Frame No.{1} dis:{2}'.format(
-                time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - st_time)), test_count, dis))
+            #test_dis += dis.item()
+            #logger.info('Test time {0} Test Frame No.{1} dis:{2}'.format(
+             #   time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - st_time)), test_count, dis))
 
-            test_count += 1
-            gt_pose[:, :, 0] = np.vstack((gt_pose_r[0].numpy(), gt_pose_t[0].numpy())).transpose()
+            #test_count += 1
+            gt_pose[:, :, 0] = np.hstack((gt_pose_r[0].numpy(), gt_pose_t[0].numpy().transpose()))
             scio.savemat('{0}/{1}.mat'.format(result_wo_refine_dir, '%04d' % j),
                          {'poses': my_result_wo_refine, 'gt_poses': gt_pose, 'cls_indexes': cls_indexes})
             if opt.refine_start:
                 scio.savemat('{0}/{1}.mat'.format(result_refine_dir, '%04d' % j), {'poses': my_result, 'gt_poses': gt_pose, 'cls_indexes': idx.cpu().numpy()[0]})
             print("Finish No.{0} keyframe".format(j))
 
-        test_dis = test_dis / test_count
-        logger.info('Test time {0} Epoch {1} TEST FINISH Avg dis: {2}'.format(
-            time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - st_time)), epoch, test_dis))
+        #test_dis = test_dis / test_count
+        #logger.info('Test time {0} Epoch {1} TEST FINISH Avg dis: {2}'.format(
+         #   time.strftime("%Hh %Mm %Ss", time.gmtime(time.time() - st_time)), epoch, test_dis))
 
 
 
