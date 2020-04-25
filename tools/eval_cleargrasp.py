@@ -65,8 +65,8 @@ bs = 1
 refine = False
 dataset_config_dir = 'datasets/cleargrasp/dataset_config'
 #ycb_toolbox_dir = 'YCB_Video_toolbox'
-#result_wo_refine_dir = 'experiments/eval_result/cleargrasp/temp_all_instances/'
-result_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_iterative_result_all_instances'
+result_wo_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_wo_refine_result_all_instances/'
+#result_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_iterative_result_all_instances'
 if not os.path.exists(result_wo_refine_dir):
     os.makedirs(result_wo_refine_dir)	
 
