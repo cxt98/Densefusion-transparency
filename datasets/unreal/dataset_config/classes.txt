@@ -1,5 +1,4 @@
-cup-with-waves
-flower-bath-bomb
-heart-bath-bomb
-square-plastic-bottle
-stemless-plastic-champagne-glass
+wine_cup
+cham_cup
+tall_cup
+glass_jar

@@ -147,7 +147,7 @@ class PoseDataset(data.Dataset):
                         mask_front = mk
                     else:
                         mask_front = mask_front * mk
-                t_label = label * mask_front
+                t_label = label * mask_front  # TODO: fix mismatch between two sizes of images
                 if len(t_label.nonzero()[0]) > 1000:
                     label = t_label
                     add_front = True
@@ -168,7 +168,7 @@ class PoseDataset(data.Dataset):
         if self.add_noise:
             img = self.trancolor(img)
 
-        img_width, img_height = depth.shape
+        img_height, img_width = depth.shape
         img_step = 40
         border_list = np.arange(0, img_width + img_step + 1, img_step)
         border_list[0] = -1
@@ -176,16 +176,24 @@ class PoseDataset(data.Dataset):
         img = np.fliplr(np.array(img))
         img = np.transpose(img[:, :, :3], (2, 0, 1))[:, rmin:rmax, cmin:cmax]
 
-        seed = random.choice(self.list)
-        back = np.array(self.trancolor(Image.open(self.list2realpath(seed, 'rgb-imgs', '-rgb.jpg')).convert("RGB")))
-        back_height, back_width, _ = back.shape
-        back_rmin = random.randint(0, back_height - (rmax - rmin) - 1)
-        back_cmin = random.randint(0, back_width - (cmax - cmin) - 1)
-        back = np.transpose(back, (2, 0, 1))[:, back_rmin:back_rmin + (rmax - rmin), back_cmin:back_cmin + (cmax - cmin)]
+        while 1:
+            temp_img = Image.open(self.list2realpath(random.choice(self.list), 'rgb-imgs', '-rgb.jpg'))
+            width, height = temp_img.size
+            if width == 1920:  # only select background image from larger ones so as to avoid overflow of large bboxes
+                back = np.array(self.trancolor(temp_img.convert("RGB")))
+                break
+
+        # back = np.array(self.trancolor(Image.open(self.list2realpath(seed, 'rgb-imgs', '-rgb.jpg')).convert("RGB")))
         try:
+            back_height, back_width, _ = back.shape
+            back_rmin = random.randint(0, back_height - (rmax - rmin) - 1)
+            back_cmin = random.randint(0, back_width - (cmax - cmin) - 1)
+            back = np.transpose(back, (2, 0, 1))[:, back_rmin:back_rmin + (rmax - rmin), back_cmin:back_cmin + (cmax - cmin)]
             img_masked = back * mask_back[rmin:rmax, cmin:cmax] + img
         except:
             print('dimension mismatch')
+            print('back_height = ', back_height, ' rmin = ', rmin, ' rmax = ', rmax)
+            print('back_width = ', back_width, ' cmin = ', cmin, ' cmax = ', cmax)
         # if self.list[index][:8] == 'data_syn':
         #     seed = random.choice(self.train)
         #     back = np.array(self.trancolor(Image.open('{0}/{1}-color.png'.format(self.root, seed)).convert("RGB")))
@@ -261,10 +269,15 @@ class PoseDataset(data.Dataset):
         else:
             target = np.add(target, target_t)
 
-        # fw = open('temp/{0}_tar.xyz'.format(index), 'w')
-        # for it in target:
-        #    fw.write('{0} {1} {2}\n'.format(it[0], it[1], it[2]))
-        # fw.close()
+        # verify target pointcloud
+        # if self.list[index].find('cup-with-waves') != -1:
+        #     fw = open('{0}_tar.xyz'.format(index), 'w')
+        #     for it in target:
+        #         fw.write('{0} {1} {2}\n'.format(it[0], it[1], it[2]))
+        #     print(self.list[index], index)
+        #     exit(0)
+        #     fw.close()
+
         # print(torch.from_numpy(cloud.astype(np.float32)).size(), torch.LongTensor(choose.astype(np.int32)).size(),
         #       self.norm(torch.from_numpy(img_masked.astype(np.float32))).size(), torch.from_numpy(target.astype(np.float32)).size(),
         #       torch.from_numpy(model_points.astype(np.float32)).size(), torch.LongTensor([int(obj[idx]) - 1]).size())
@@ -356,7 +369,7 @@ class PoseDataset(data.Dataset):
 # img_width = 480
 # img_length = 640
 
-def get_bbox(label, img_width, img_length, border_list):
+def get_bbox(label, img_width, img_height, border_list):
     rows = np.any(label, axis=1)
     cols = np.any(label, axis=0)
     rmin, rmax = np.where(rows)[0][[0, -1]]
@@ -386,12 +399,18 @@ def get_bbox(label, img_width, img_length, border_list):
         delt = -cmin
         cmin = 0
         cmax += delt
-    if rmax > img_width:
-        delt = rmax - img_width
-        rmax = img_width
+    if rmax > img_height:
+        delt = rmax - img_height
+        rmax = img_height
         rmin -= delt
-    if cmax > img_length:
-        delt = cmax - img_length
-        cmax = img_length
+    if cmax > img_width:
+        delt = cmax - img_width
+        cmax = img_width
         cmin -= delt
+    # bug in the code: will have minus rmin, cmin when the object is large and has height as image height, or width
+    rmin = max(rmin, 0)
+    cmin = max(cmin, 0)
+    rmax = min(rmax, img_height)
+    cmax = min(cmax, img_width)
+
     return rmin, rmax, cmin, cmax

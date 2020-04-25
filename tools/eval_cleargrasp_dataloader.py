@@ -66,6 +66,7 @@ def main():
     opt.manualSeed = random.randint(1, 10000)
     random.seed(opt.manualSeed)
     torch.manual_seed(opt.manualSeed)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     if opt.dataset == 'ycb':
         opt.num_objects = 21  # number of object classes in the dataset
@@ -90,13 +91,13 @@ def main():
         return
 
     estimator = PoseNet(num_points=opt.num_points, num_obj=opt.num_objects)
-    #estimator.cuda()
+    estimator.to(device)
     refiner = PoseRefineNet(num_points=opt.num_points, num_obj=opt.num_objects)
-    #refiner.cuda()
+    refiner.to(device)
 
     if opt.resume_posenet != '':
         #estimator.load_state_dict(torch.load('{0}/{1}'.format(opt.outf, opt.resume_posenet)))
-        estimator.load_state_dict(torch.load('{0}/{1}'.format(opt.outf, opt.resume_posenet), map_location='cpu'))
+        estimator.load_state_dict(torch.load('{0}/{1}'.format(opt.outf, opt.resume_posenet)))
 
     if opt.resume_refinenet != '':
         refiner.load_state_dict(torch.load('{0}/{1}'.format(opt.outf, opt.resume_refinenet)))
@@ -221,21 +222,12 @@ def main():
 
             points, choose, img, target, model_points, idx, gt_pose_r, gt_pose_t = data
 
-            '''
-            cloud, choose, img, target, model_points, idx = Variable(points).cuda(), \
-                                                             Variable(choose).cuda(), \
-                                                             Variable(img).cuda(), \
-                                                             Variable(target).cuda(), \
-                                                             Variable(model_points).cuda(), \
-                                                             Variable(idx).cuda()
-            '''
-
-            cloud, choose, img, target, model_points, idx = Variable(points), \
-                                                             Variable(choose), \
-                                                             Variable(img), \
-                                                             Variable(target), \
-                                                             Variable(model_points), \
-                                                             Variable(idx)
+            cloud, choose, img, target, model_points, idx = Variable(points).to(device), \
+                                                             Variable(choose).to(device), \
+                                                             Variable(img).to(device), \
+                                                             Variable(target).to(device), \
+                                                             Variable(model_points).to(device), \
+                                                             Variable(idx).to(device)
 
             pred_r, pred_t, pred_c, emb = estimator(img, cloud, choose, idx)
             #_, dis, new_points, new_target = criterion(pred_r, pred_t, pred_c, target, model_points, idx, cloud, opt.w,
@@ -260,12 +252,12 @@ def main():
                     T = Variable(torch.from_numpy(my_t.astype(np.float32))).cuda().view(1, 3).\
                         repeat(opt.num_points, 1).contiguous().view(1, opt.num_points, 3)
                     '''
-                    T = Variable(torch.from_numpy(my_t.astype(np.float32))).view(1, 3).\
+                    T = Variable(torch.from_numpy(my_t.astype(np.float32))).to(device).view(1, 3).\
                         repeat(opt.num_points, 1).contiguous().view(1, opt.num_points, 3)
 
                     my_mat = quaternion_matrix(my_r)
                     #R = Variable(torch.from_numpy(my_mat[:3, :3].astype(np.float32))).cuda().view(1, 3, 3)
-                    R = Variable(torch.from_numpy(my_mat[:3, :3].astype(np.float32))).view(1, 3, 3)
+                    R = Variable(torch.from_numpy(my_mat[:3, :3].astype(np.float32))).to(device).view(1, 3, 3)
                     my_mat[0:3, 3] = my_t
 
                     new_cloud = torch.bmm((cloud - T), R).contiguous()

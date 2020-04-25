@@ -113,7 +113,7 @@ def main():
     elif opt.dataset == 'linemod':
         dataset = PoseDataset_linemod('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
     elif opt.dataset == 'cleargrasp':
-        dataset = PoseDataset_cleargrasp('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
+        dataset = PoseDataset_cleargrasp('train', opt.num_points, False, opt.dataset_root, opt.noise_trans, opt.refine_start)
     elif opt.dataset == 'unreal':
         dataset = PoseDataset_unreal('train', opt.num_points, True, opt.dataset_root, opt.noise_trans, opt.refine_start)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, shuffle=True, num_workers=opt.workers)

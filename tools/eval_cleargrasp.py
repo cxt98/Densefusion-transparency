@@ -165,20 +165,23 @@ def exr_loader(EXR_PATH, ndim=3):
         exr_arr = np.array(channel)
         return exr_arr
 
-dataset = PoseDataset_cleargrasp('test', 500, False, '/media/cravisjan97/New Volume/UMICH WINTER 2020/EECS 598-007/Project/', 0.0, False)
-criterion = Loss(dataset.get_num_points_mesh(), dataset.get_sym_list())
+# dataset = PoseDataset_cleargrasp('test', 500, False, opt.dataset_root, 0.0, False)
+# criterion = Loss(dataset.get_num_points_mesh(), dataset.get_sym_list())
 
-
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 estimator = PoseNet(num_points=num_points, num_obj=num_obj)
 #estimator.cuda()
 #estimator.load_state_dict(torch.load(opt.model))
-estimator.load_state_dict(torch.load(opt.model, map_location='cpu'))
+estimator.load_state_dict(torch.load(opt.model))
+estimator.to(device)
 estimator.eval()
+
 
 refiner = PoseRefineNet(num_points=num_points, num_obj=num_obj)
 #refiner.cuda()
 if refine:
     refiner.load_state_dict(torch.load(opt.refine_model))
+refiner.to(device)
 refiner.eval()
 
 testlist = []
@@ -314,12 +317,12 @@ for now in range(0, len(testlist)):
         index = Variable(index).cuda()
         target = Variable(target).cuda()
         '''
-        model_points = Variable(model_points)
-        cloud = Variable(cloud)
-        choose = Variable(choose)
-        img_masked = Variable(img_masked)
-        index = Variable(index)
-        target = Variable(target)
+        model_points = Variable(model_points).to(device)
+        cloud = Variable(cloud).to(device)
+        choose = Variable(choose).to(device)
+        img_masked = Variable(img_masked).to(device)
+        index = Variable(index).to(device)
+        target = Variable(target).to(device)
 
         pred_r, pred_t, pred_c, emb = estimator(img_masked, cloud, choose, index)
         #_, dis, new_points, new_target = criterion(pred_r, pred_t, pred_c, target, model_points, index, cloud,0.015,

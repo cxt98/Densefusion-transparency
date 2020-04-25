@@ -53,7 +53,7 @@ class PoseDataset(data.Dataset):
             if not class_input:
                 break
 
-            input_file = open('{0}/cleargrasp-3d-models/{1}.xyz'.format(self.root, class_input[:-1])) # needs to be changed for unreal
+            input_file = open('{0}/unreal-3d-models/{1}.xyz'.format(self.root, class_input[:-1]))
             self.cld[class_id] = []
             while 1:
                 input_line = input_file.readline()
@@ -75,8 +75,8 @@ class PoseDataset(data.Dataset):
         # img size = 1024 * 576
         self.cam_cx_2 = 512
         self.cam_cy_2 = 288
-        self.cam_fx_2 = 739.4
-        self.cam_fy_2 = 739.4
+        self.cam_fx_2 = 512
+        self.cam_fy_2 = 512
 
 
         self.xmap1 = np.array([[j for i in range(1920)] for j in range(1080)])
@@ -103,8 +103,8 @@ class PoseDataset(data.Dataset):
         # read depth from png file
         depth = np.array(Image.open(self.root+self.list[index]+'.depth.png'))
         # read segmentation from png file
-        label = np.array(Image.open(self.root+self.list[index]+'.is.png'))
-        meta = scio.loadmat(self.root+self.list[index]+'.mat')
+        label = np.array(Image.open(self.root+self.list[index]+'.is.png'))  # TODO: make this is.png using projection
+        meta = scio.loadmat(self.root+self.list[index]+'.mat')  # TODO: generate .mat using meta_gen.py
 
         if img.width == 1024:
             cam_cx = self.cam_cx_2

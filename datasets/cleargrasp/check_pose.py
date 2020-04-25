@@ -14,16 +14,36 @@ else:
 import math
 import scipy.io as sio
 
+# verify target pointcloud in Densefusion, cup-with-waves and square-plastic-bottle
+# input_file = open('../../720_tar.xyz', 'r')
+# pcd = []
+# while 1:
+#     input_line = input_file.readline()
+#     if not input_line:
+#         break
+#     input_line = input_line[:-1].split(' ')
+#     pcd.append([float(input_line[0]), float(input_line[1]), float(input_line[2])])
+# pcd = np.array(pcd)
+# intrinsic = np.array([[1386.4, 0, 960], [0, 1386.4, 540], [0, 0, 1]])
+# x_y_1 = np.vstack((pcd[:, 0] / pcd[:, -1], pcd[:, 1] / pcd[:, -1], pcd[:, -1] / pcd[:, -1]))
+# u_v_1 = np.matmul(intrinsic, x_y_1)
+# img = cv2.flip(cv2.imread('/home/cxt/Documents/research/lf_perception/598-007-project/cleargrasp-dataset-train/cup-with-waves-train/rgb-imgs/000000720-rgb.jpg'), 1)
+# img_width, img_height, _ = img.shape
+# for (u, v) in zip(u_v_1[0], u_v_1[1]):
+#     if 1 < int(u) < img_width and 1 < int(v) < img_height:
+#         cv2.circle(img, (int(u), int(v)), 1, color=(255, 0, 0))
+# cv2.imwrite('tmp.jpg', img)
+
 mode = 'val'  # 'val'
 
 objs = ['heart-bath-bomb', 'square-plastic-bottle', 'cup-with-waves', 'flower-bath-bomb', 'stemless-plastic-champagne-glass']
 
-obj_modelpath = '../cleargrasp-3d-models-fixed/'
+obj_modelpath = '/home/cxt/Documents/research/lf_perception/598-007-project/cleargrasp-3d-models-fixed/'
 
 if mode == 'train':
-    root = '../cleargrasp-dataset-train/'
+    root = '/home/cxt/Documents/research/lf_perception/598-007-project/cleargrasp-dataset-train/'
 else:
-    root = '../cleargrasp-testing-validation/synthetic-val/'
+    root = '/home/cxt/Documents/research/lf_perception/598-007-project/cleargrasp-testing-validation/synthetic-val/'
 obj_folders = sorted(os.listdir(root))
 x_axis_rads = 1.2112585306167603
 y_axis_rads = 0.7428327202796936
@@ -119,7 +139,7 @@ for obj in objs:
             count += 1
         
 # correctness of mat files, check
-test_objs = ['heart-bath-bomb', 'square-plastic-bottle', 'stemless-plastic-champagne-glass']
+test_objs = ['cup-with-waves', 'flower-bath-bomb', 'heart-bath-bomb', 'square-plastic-bottle', 'stemless-plastic-champagne-glass']
 testlist_file = '/home/cxt/Documents/research/lf_perception/598-007-project/DenseFusion/datasets/cleargrasp/dataset_config/test_data_list.txt'
 testlist = []
 with open(testlist_file, 'r') as f:
