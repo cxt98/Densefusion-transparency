@@ -31,12 +31,12 @@ import cv2
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset_root', type=str,
-                    default='/home/cxt/Documents/research/lf_perception/598-007-project/cleargrasp-testing-validation/synthetic-val/', help='dataset root dir')
+                    default='/media/cravisjan97/New Volume/UMICH WINTER 2020/EECS 598-007/Project/cleargrasp-testing-validation/synthetic-val/', help='dataset root dir')
 parser.add_argument('--model', type=str,
-                    default='/home/cxt/Documents/research/lf_perception/598-007-project/DenseFusion/trained_models/cleargrasp/pose_current_model_obj.pth', help='resume PoseNet model')
+                    default='/media/cravisjan97/New Volume/UMICH WINTER 2020/EECS 598-007/Project/Densefusion-transparency/trained_models/cleargrasp/pose_model_16_0.15974816026976782_obj.pth', help='resume PoseNet model')
 parser.add_argument('--refine_model', type=str, default='', help='resume PoseRefineNet model')
 parser.add_argument('--model_path', type=str,
-                    default='/home/cxt/Documents/research/lf_perception/598-007-project/cleargrasp-3d-models')
+                    default='/media/cravisjan97/New Volume/UMICH WINTER 2020/EECS 598-007/Project/cleargrasp-3d-models-fixed')
 opt = parser.parse_args()
 
 norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -65,8 +65,10 @@ bs = 1
 refine = False
 dataset_config_dir = 'datasets/cleargrasp/dataset_config'
 #ycb_toolbox_dir = 'YCB_Video_toolbox'
-result_wo_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_wo_refine_result_all_instances'
+#result_wo_refine_dir = 'experiments/eval_result/cleargrasp/temp_all_instances/'
 result_refine_dir = 'experiments/eval_result/cleargrasp/Densefusion_iterative_result_all_instances'
+if not os.path.exists(result_wo_refine_dir):
+    os.makedirs(result_wo_refine_dir)	
 
 
 # borrowed from dataset。py
@@ -163,23 +165,24 @@ def exr_loader(EXR_PATH, ndim=3):
         exr_arr = np.array(channel)
         return exr_arr
 
-dataset = PoseDataset_cleargrasp('test', 500, False, '/home/cxt/Documents/research/lf_perception/598-007-project/', 0.0, False)
+dataset = PoseDataset_cleargrasp('test', 500, False, '/media/cravisjan97/New Volume/UMICH WINTER 2020/EECS 598-007/Project/', 0.0, False)
 criterion = Loss(dataset.get_num_points_mesh(), dataset.get_sym_list())
 
 
 estimator = PoseNet(num_points=num_points, num_obj=num_obj)
-estimator.cuda()
-estimator.load_state_dict(torch.load(opt.model))
+#estimator.cuda()
+#estimator.load_state_dict(torch.load(opt.model))
+estimator.load_state_dict(torch.load(opt.model, map_location='cpu'))
 estimator.eval()
 
 refiner = PoseRefineNet(num_points=num_points, num_obj=num_obj)
-refiner.cuda()
+#refiner.cuda()
 if refine:
     refiner.load_state_dict(torch.load(opt.refine_model))
 refiner.eval()
 
 testlist = []
-input_file = open('{0}/test_data_cup_list.txt'.format(dataset_config_dir))  # TODO: now only trained on one object (cup)
+input_file = open('{0}/test_data_list.txt'.format(dataset_config_dir))  # TODO: now only trained on one object (cup)
 while 1:
     input_line = input_file.readline()
     if not input_line:
@@ -218,20 +221,24 @@ for now in range(0, len(testlist)):
     # img = Image.open('{0}/{1}-color.png'.format(opt.dataset_root, testlist[now]))
     # read depth from exr file
     depth = exr_loader(list2realpath(testlist[now], 'depth-imgs-rectified', '-depth-rectified.exr'), ndim=1)
+    depth = np.fliplr(depth)
     # depth = np.array(Image.open('{0}/{1}-depth.png'.format(opt.dataset_root, testlist[now])))
     # posecnn_meta = scio.loadmat('{0}/results_PoseCNN_RSS2018/{1}.mat'.format(ycb_toolbox_dir, '%06d' % now))
     meta = scio.loadmat(list2realpath(testlist[now], 'meta-files', '.mat'))
     # read segmentation from exr file
     label = exr_loader(list2realpath(testlist[now], 'variant-masks', '-variantMasks.exr'), ndim=1)
+    label = np.fliplr(label)
 
     mask_back = ma.getmaskarray(ma.masked_equal(label, 0))
     obj = meta['cls_indexes'].flatten().astype(np.int32)
-    instance_id = meta['instance_ids'].flatten().astype(np.int32)
+    #instance_id = meta['instance_ids'].flatten().astype(np.int32)
+    instance_id = np.unique(label).tolist()[1:]
     my_result_wo_refine = []
     my_result = []
     valididx = []
     gt_poses = []
     for idx in range(len(instance_id)):
+        gt_pose = np.zeros((3, 4, 1))
         mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
         mask_label = ma.getmaskarray(ma.masked_equal(label, instance_id[idx]))
         mask = mask_label * mask_depth
@@ -244,7 +251,15 @@ for now in range(0, len(testlist)):
         border_list[0] = -1
 
         rmin, rmax, cmin, cmax = get_bbox(mask_label, img_width, img_height, border_list)
-        img_masked = np.transpose(np.array(img)[:, :, :3], (2, 0, 1))[:, rmin:rmax, cmin:cmax]
+        img1 = np.fliplr(np.array(img))
+        img1 = np.transpose(img1[:, :, :3], (2, 0, 1))[:, rmin:rmax, cmin:cmax]
+
+        seed = random.choice(testlist)
+        back = np.array(trancolor(Image.open(list2realpath(seed, 'rgb-imgs', '-rgb.jpg')).convert("RGB")))
+        back = np.transpose(back, (2, 0, 1))[:, rmin:rmax, cmin:cmax]
+        img_masked = back * mask_back[rmin:rmax, cmin:cmax] + img1
+
+        img_masked = img_masked + np.random.normal(loc=0.0, scale=7.0, size=img_masked.shape)
 
         target_r = meta['poses'][:, :, idx][:, 0:3]
         target_t = np.array([meta['poses'][:, :, idx][:, 3:4].flatten()])
@@ -291,17 +306,25 @@ for now in range(0, len(testlist)):
         model_points = torch.from_numpy(model_points.astype(np.float32))
         index = torch.LongTensor([int(obj[idx]) - 1])
 
+        '''
         model_points = Variable(model_points).cuda()
         cloud = Variable(cloud).cuda()
         choose = Variable(choose).cuda()
         img_masked = Variable(img_masked).cuda()
         index = Variable(index).cuda()
         target = Variable(target).cuda()
+        '''
+        model_points = Variable(model_points)
+        cloud = Variable(cloud)
+        choose = Variable(choose)
+        img_masked = Variable(img_masked)
+        index = Variable(index)
+        target = Variable(target)
 
         pred_r, pred_t, pred_c, emb = estimator(img_masked, cloud, choose, index)
-        _, dis, new_points, new_target = criterion(pred_r, pred_t, pred_c, target, model_points, index, cloud,0.015,
-                                                   False)
-        print(dis.item())
+        #_, dis, new_points, new_target = criterion(pred_r, pred_t, pred_c, target, model_points, index, cloud,0.015,
+         #                                          False)
+        #print(dis.item())
         pred_r = pred_r / torch.norm(pred_r, dim=2).view(1, num_points, 1)
 
         pred_c = pred_c.view(bs, num_points)
@@ -314,13 +337,14 @@ for now in range(0, len(testlist)):
         my_pred = np.append(my_r, my_t)
         my_result_wo_refine.append(my_pred.tolist())
         #gt_poses.append(np.vstack((target_r[0], target_t[0])).transpose())
-        gt = np.concatenate([target_r, target_t.transpose()], axis=1)
-        gt = gt[:, :,np.newaxis]
+        #gt = np.concatenate([target_r, target_t.transpose()], axis=1)
+        #gt = gt[:, :,np.newaxis]
+        gt_pose[:, :, 0] = np.hstack((target_r, target_t.transpose()))
         #print(np.shape(gt))
         if len(gt_poses)!=0:
-            gt_poses = np.concatenate([gt_poses, gt], axis=2)
+            gt_poses = np.concatenate([gt_poses, gt_pose], axis=2)
         else:
-            gt_poses = gt
+            gt_poses = gt_pose
 
     scio.savemat('{0}/{1}.mat'.format(result_wo_refine_dir, '%04d' % now),
                  {'poses': my_result_wo_refine, 'gt_poses': gt_poses, 'cls_indexes': obj[valididx]})
