@@ -31,12 +31,19 @@ python3 tools/train.py
 
 ## Evaluation
 * Download cleargrasp-synthetic-val.zip from https://drive.google.com/drive/u/1/folders/1zEJodFoijmzjcD2Tpzl7EB7ftbGodhFS. After downloading and unzipping the folder, rename the folder from cleargrasp-synthetic-val to cleargrasp-testing-validation.
-* Run the following command:
+* Run the following command for one instance:
 ```
 python3 tools/eval_cleargrasp_dataloader.py --resume_posenet='name_of_trained_model.pth' --dataset_root=your_root_dir
 
 ```
 The above code stores the predicted and GT poses (in .mat format for each test sample) in the directory ./trained_models/cleargrasp/Densefusion_wo_refine_result. 
+* Run the following command for all instances:
+```
+python3 tools/eval_cleargrasp.py --model=path to the trained model --dataset_root=your_root_dir --model_path=path to the cleargrasp object models
+
+```
+The above code stores the predicted and GT poses (in .mat format for each test sample) in the directory ./trained_models/cleargrasp/Densefusion_wo_refine_result_all_instances. 
+
 
 * Clone the repository https://github.com/cxt98/Pose_evaluation_toolbox for MATLAB evaluation
 * Go to globals.m and change opt.root to your root directory. Also change opt.result_path to the result directory of python evaluation(./trained_models/cleargrasp/Densefusion_wo_refine_result). Also make sure the opt.classfile, opt.testlist_file and opt.test_image_path directories are correct
