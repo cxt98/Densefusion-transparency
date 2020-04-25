@@ -20,7 +20,7 @@ import cv2
 class PoseDataset(data.Dataset):
     def __init__(self, mode, num_pt, add_noise, root, noise_trans, refine):
         if mode == 'train':
-            self.path = 'datasets/cleargrasp/dataset_config/train_data_list.txt' # Change this to train_data_cup_list.txt for single object
+            self.path = 'datasets/cleargrasp/dataset_config/train_data_list.txt'  # Change this to train_data_cup_list.txt for single object
         elif mode == 'test':
             self.path = 'datasets/cleargrasp/dataset_config/test_data_list.txt'  # Change this to test_data_cup_list.txt for single object
         self.num_pt = num_pt
@@ -40,7 +40,7 @@ class PoseDataset(data.Dataset):
                 self.list.append('cleargrasp-dataset-train/' + input_line)
             else:
                 self.list.append('cleargrasp-testing-validation/synthetic-val/' + input_line)
-            
+
         input_file.close()
 
         self.length = len(self.list)
@@ -63,7 +63,7 @@ class PoseDataset(data.Dataset):
                 self.cld[class_id].append([float(input_line[0]), float(input_line[1]), float(input_line[2])])
             self.cld[class_id] = np.array(self.cld[class_id])
             input_file.close()
-            
+
             class_id += 1
 
         # img size = 1920 * 1080
@@ -78,19 +78,18 @@ class PoseDataset(data.Dataset):
         self.cam_fx_2 = 739.4
         self.cam_fy_2 = 739.4
 
-
         self.xmap1 = np.array([[j for i in range(1920)] for j in range(1080)])
         self.ymap1 = np.array([[i for i in range(1920)] for j in range(1080)])
-        
+
         self.xmap2 = np.array([[j for i in range(1024)] for j in range(576)])
         self.ymap2 = np.array([[i for i in range(1024)] for j in range(576)])
-        
+
         self.trancolor = transforms.ColorJitter(0.2, 0.2, 0.2, 0.05)
         self.noise_img_loc = 0.0
         self.noise_img_scale = 7.0
         self.minimum_num_pt = 50
         self.norm = transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        self.symmetry_obj_idx = [0, 1, 2, 3, 4] # check idx start from 0 or 1
+        self.symmetry_obj_idx = [0, 1, 2, 3, 4]  # check idx start from 0 or 1
         self.num_pt_mesh_small = 500
         self.num_pt_mesh_large = 2600
         self.refine = refine
@@ -100,9 +99,10 @@ class PoseDataset(data.Dataset):
 
     def __getitem__(self, index):
         img = Image.open(self.list2realpath(self.list[index], 'rgb-imgs', '-rgb.jpg'))
-        #img = img.transpose(Image.FLIP_LEFT_RIGHT)
+        # img = img.transpose(Image.FLIP_LEFT_RIGHT)
         # read depth from exr file
-        depth = self.exr_loader(self.list2realpath(self.list[index], 'depth-imgs-rectified', '-depth-rectified.exr'), ndim=1)
+        depth = self.exr_loader(self.list2realpath(self.list[index], 'depth-imgs-rectified', '-depth-rectified.exr'),
+                                ndim=1)
         depth = np.fliplr(depth)
         # read segmentation from exr file
         label = self.exr_loader(self.list2realpath(self.list[index], 'variant-masks', '-variantMasks.exr'), ndim=1)
@@ -128,50 +128,18 @@ class PoseDataset(data.Dataset):
 
         add_front = False
 
-        '''
-        if self.add_noise:
-            while 1:
-                seed = random.choice(self.list)
-                front = np.array(self.trancolor(Image.open(self.list2realpath(seed, 'rgb-imgs', '-rgb.jpg')).convert("RGB")))
-                front = np.transpose(front, (2, 0, 1))
-                f_label = self.exr_loader(self.list2realpath(seed, 'variant-masks', '-variantMasks.exr'))[0]
-                front_label = np.unique(f_label).tolist()[1:]
-                if len(front_label) < self.front_num:
-                    continue
-                front_label = random.sample(front_label, self.front_num)
-                for f_i in front_label:
-                    mk = ma.getmaskarray(ma.masked_not_equal(f_label, f_i))
-                    if f_i == front_label[0]:
-                        mask_front = mk
-                    else:
-                        mask_front = mask_front * mk
-                t_label = label * mask_front
-                if len(t_label.nonzero()[0]) > 1000:
-                    label = t_label
-                    add_front = True
-                    mask_valid = False
-                    for idx in range(len(obj)):
-                        mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
-                        mask_label = ma.getmaskarray(ma.masked_equal(label, obj[idx]))
-                        mask = mask_label * mask_depth
-                        if len(mask.nonzero()[0]) > self.minimum_num_pt:
-                            mask_valid = True
-                            break
-                    if mask_valid:
-                        break
-        '''
-
         if self.add_noise:
             for k in range(5):
                 seed = random.choice(self.list)
-                front = np.array(self.trancolor(Image.open(self.list2realpath(seed, 'rgb-imgs', '-rgb.jpg')).convert("RGB")))
+                front = np.array(
+                    self.trancolor(Image.open(self.list2realpath(seed, 'rgb-imgs', '-rgb.jpg')).convert("RGB")))
                 front = np.fliplr(front)
                 front = np.transpose(front, (2, 0, 1))
                 f_label = self.exr_loader(self.list2realpath(seed, 'variant-masks', '-variantMasks.exr'))[0]
                 front_label = np.unique(f_label).tolist()[1:]
 
                 if len(front_label) < self.front_num:
-                   continue
+                    continue
                 front_label = random.sample(front_label, self.front_num)
                 for f_i in front_label:
                     mk = ma.getmaskarray(ma.masked_not_equal(f_label, f_i))
@@ -186,16 +154,16 @@ class PoseDataset(data.Dataset):
                     break
 
         obj = meta['cls_indexes'].flatten().astype(np.int32)
-        #instance_id = meta['instance_ids'].flatten().astype(np.int32)
+        # instance_id = meta['instance_ids'].flatten().astype(np.int32)
         instance_id = np.unique(label).tolist()[1:]
-        #print(instance_id)
+        # print(instance_id)
         while 1:
-             idx = np.random.randint(0, len(instance_id))
-             mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
-             mask_label = ma.getmaskarray(ma.masked_equal(label, instance_id[idx]))
-             mask = mask_label * mask_depth
-             if len(mask.nonzero()[0]) > self.minimum_num_pt:
-                 break
+            idx = np.random.randint(0, len(instance_id))
+            mask_depth = ma.getmaskarray(ma.masked_not_equal(depth, 0))
+            mask_label = ma.getmaskarray(ma.masked_equal(label, instance_id[idx]))
+            mask = mask_label * mask_depth
+            if len(mask.nonzero()[0]) > self.minimum_num_pt:
+                break
 
         if self.add_noise:
             img = self.trancolor(img)
@@ -210,8 +178,14 @@ class PoseDataset(data.Dataset):
 
         seed = random.choice(self.list)
         back = np.array(self.trancolor(Image.open(self.list2realpath(seed, 'rgb-imgs', '-rgb.jpg')).convert("RGB")))
-        back = np.transpose(back, (2, 0, 1))[:, rmin:rmax, cmin:cmax]
-        img_masked = back * mask_back[rmin:rmax, cmin:cmax] + img
+        back_height, back_width, _ = back.shape
+        back_rmin = random.randint(0, back_height - (rmax - rmin) - 1)
+        back_cmin = random.randint(0, back_width - (cmax - cmin) - 1)
+        back = np.transpose(back, (2, 0, 1))[:, back_rmin:back_rmin + (rmax - rmin), back_cmin:back_cmin + (cmax - cmin)]
+        try:
+            img_masked = back * mask_back[rmin:rmax, cmin:cmax] + img
+        except:
+            print('dimension mismatch')
         # if self.list[index][:8] == 'data_syn':
         #     seed = random.choice(self.train)
         #     back = np.array(self.trancolor(Image.open('{0}/{1}-color.png'.format(self.root, seed)).convert("RGB")))
@@ -221,7 +195,8 @@ class PoseDataset(data.Dataset):
         #     img_masked = img
 
         if self.add_noise and add_front:
-            img_masked = img_masked * mask_front[rmin:rmax, cmin:cmax] + front[:, rmin:rmax, cmin:cmax] * ~(mask_front[rmin:rmax, cmin:cmax])
+            img_masked = img_masked * mask_front[rmin:rmax, cmin:cmax] + front[:, rmin:rmax, cmin:cmax] * ~(
+            mask_front[rmin:rmax, cmin:cmax])
 
         # if self.list[index][:8] == 'data_syn':
         #     img_masked = img_masked + np.random.normal(loc=0.0, scale=7.0, size=img_masked.shape)
@@ -231,8 +206,8 @@ class PoseDataset(data.Dataset):
         # scipy.misc.imsave('temp/{0}_input.png'.format(index), p_img)
         # scipy.misc.imsave('temp/{0}_label.png'.format(index), mask[rmin:rmax, cmin:cmax].astype(np.int32))
 
-        #print(np.shape(meta['poses']))
-        #print(idx)
+        # print(np.shape(meta['poses']))
+        # print(idx)
         target_r = meta['poses'][:, :, idx][:, 0:3]
         target_t = np.array([meta['poses'][:, :, idx][:, 3:4].flatten()])
         add_t = np.array([random.uniform(-self.noise_trans, self.noise_trans) for i in range(3)])
@@ -245,7 +220,7 @@ class PoseDataset(data.Dataset):
             choose = choose[c_mask.nonzero()]
         else:
             choose = np.pad(choose, (0, self.num_pt - len(choose)), 'wrap')
-        
+
         depth_masked = depth[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
         xmap_masked = self.xmap[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
         ymap_masked = self.ymap[rmin:rmax, cmin:cmax].flatten()[choose][:, np.newaxis].astype(np.float32)
@@ -257,9 +232,9 @@ class PoseDataset(data.Dataset):
         pt0 = (ymap_masked - cam_cx) * pt2 / cam_fx
         pt1 = (xmap_masked - cam_cy) * pt2 / cam_fy
         cloud = np.concatenate((pt0, pt1, pt2), axis=1)
-        with open('test_pcd.xyz', 'w') as f:
-            for i in range(500):
-                f.writelines('{} {} {}\n'.format(cloud[i][0], cloud[i][1], cloud[i][2]))
+        # with open('test_pcd.xyz', 'w') as f:
+        #     for i in range(500):
+        #         f.writelines('{} {} {}\n'.format(cloud[i][0], cloud[i][1], cloud[i][2]))
         if self.add_noise:
             cloud = np.add(cloud, add_t)
 
@@ -285,7 +260,7 @@ class PoseDataset(data.Dataset):
             target = np.add(target, target_t + add_t)
         else:
             target = np.add(target, target_t)
-        
+
         # fw = open('temp/{0}_tar.xyz'.format(index), 'w')
         # for it in target:
         #    fw.write('{0} {1} {2}\n'.format(it[0], it[1], it[2]))
@@ -293,8 +268,8 @@ class PoseDataset(data.Dataset):
         # print(torch.from_numpy(cloud.astype(np.float32)).size(), torch.LongTensor(choose.astype(np.int32)).size(),
         #       self.norm(torch.from_numpy(img_masked.astype(np.float32))).size(), torch.from_numpy(target.astype(np.float32)).size(),
         #       torch.from_numpy(model_points.astype(np.float32)).size(), torch.LongTensor([int(obj[idx]) - 1]).size())
-        
-        #print(np.shape(obj[idx]))
+
+        # print(np.shape(obj[idx]))
         if self.mode == 'train':
             return torch.from_numpy(cloud.astype(np.float32)), \
                    torch.LongTensor(choose.astype(np.int32)), \
@@ -375,7 +350,6 @@ class PoseDataset(data.Dataset):
             channel.shape = (size[1], size[0])  # Numpy arrays are (row, col)
             exr_arr = np.array(channel)
             return exr_arr
-
 
 
 # border_list = [-1, 40, 80, 120, 160, 200, 240, 280, 320, 360, 400, 440, 480, 520, 560, 600, 640, 680]
